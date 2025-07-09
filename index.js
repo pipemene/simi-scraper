@@ -10,9 +10,7 @@ app.use(express.json());
 
 app.get('/consulta', async (req, res) => {
   try {
-    const token = 'xjJ36l4J6PjMucqp9khJq6gJCjfXxY8HthO0eQ6y-901';
-
-    const url = `https://simi-api.com/iframeNvo/index.php?inmo=901&typebox=1&numbox=3&viewtitlesearch=1&titlesearch=Buscador%20de%20Inmuebles&colortitlesearch=FFFFFF&bgtitlesearch=0076BD&secondct=0076BD&primaryc=0076BD&primaryct=ffff&token=${token}`;
+    const url = 'https://simi-api.com/iframeNvo/index.php?inmo=901&typebox=1&numbox=3&viewtitlesearch=1&titlesearch=Buscador%20de%20Inmuebles&colortitlesearch=FFFFFF&bgtitlesearch=0076BD&secondct=0076BD&primaryc=0076BD&primaryct=ffff&token=xjJ36l4J6PjMucqp9khJq6gJCjfXxY8HthO0eQ6y';
 
     const browser = await puppeteer.launch({
       headless: true,
@@ -20,6 +18,13 @@ app.get('/consulta', async (req, res) => {
     });
     const page = await browser.newPage();
     await page.goto(url, { waitUntil: 'networkidle2' });
+
+    await page.select('#tip_ope', '1'); // Arriendo
+    await page.select('#tip_inm', '1'); // Apartamento
+    await page.select('#ciudad', '1');  // Primera ciudad disponible
+
+    await page.click('input[type="submit"].button');
+    await page.waitForSelector('.item_property', { timeout: 10000 });
 
     const resultados = await page.evaluate(() => {
       const items = [];
@@ -54,10 +59,10 @@ app.get('/consulta', async (req, res) => {
 
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: 'Error en scraping Puppeteer.' });
+    res.status(500).json({ error: 'Error en scraping Puppeteer con clicks.' });
   }
 });
 
 app.listen(PORT, () => {
-  console.log(`✅ Servidor Puppeteer corriendo en puerto ${PORT}`);
+  console.log(`✅ Servidor Puppeteer + Click corriendo en puerto ${PORT}`);
 });
