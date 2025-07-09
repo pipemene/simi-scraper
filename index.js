@@ -1,6 +1,5 @@
 const express = require('express');
-const axios = require('axios');
-const cheerio = require('cheerio');
+const puppeteer = require('puppeteer');
 const cors = require('cors');
 
 const app = express();
@@ -15,44 +14,50 @@ app.get('/consulta', async (req, res) => {
 
     const url = `https://simi-api.com/iframeNvo/index.php?inmo=901&typebox=1&numbox=3&viewtitlesearch=1&titlesearch=Buscador%20de%20Inmuebles&colortitlesearch=FFFFFF&bgtitlesearch=0076BD&secondct=0076BD&primaryc=0076BD&primaryct=ffff&token=${token}`;
 
-    const response = await axios.get(url);
-    const $ = cheerio.load(response.data);
+    const browser = await puppeteer.launch({
+      headless: true,
+      args: ['--no-sandbox', '--disable-setuid-sandbox']
+    });
+    const page = await browser.newPage();
+    await page.goto(url, { waitUntil: 'networkidle2' });
 
-    let resultados = [];
-
-    $('.item_property').each((i, el) => {
-      const titulo = $(el).find('h5').text().trim();
-      const fondo = $(el).find('.head_property').attr('style');
-      let imagen = null;
-      if (fondo) {
-        const match = fondo.match(/url\(["']?(.*?)["']?\)/);
-        if (match && match[1]) {
-          imagen = match[1];
+    const resultados = await page.evaluate(() => {
+      const items = [];
+      document.querySelectorAll('.item_property').forEach(el => {
+        const titulo = el.querySelector('h5')?.innerText.trim();
+        const fondo = el.querySelector('.head_property')?.getAttribute('style');
+        let imagen = null;
+        if (fondo) {
+          const match = fondo.match(/url\(["']?(.*?)["']?\)/);
+          if (match && match[1]) {
+            imagen = match[1];
+          }
         }
-      }
+        const link = el.querySelector('a')?.getAttribute('href');
 
-      const link = $(el).find('a').attr('href');
+        let precio = '';
+        el.querySelectorAll('.info_property li').forEach(li => {
+          if (li.innerText.includes('Precio')) {
+            precio = li.querySelector('span')?.innerText.trim();
+          }
+        });
 
-      let precio = '';
-      $(el).find('.info_property li').each(function() {
-        if ($(this).find('strong').text().includes('Precio')) {
-          precio = $(this).find('span').text().trim();
+        if (titulo && imagen && link && precio) {
+          items.push({ titulo, imagen, precio, link });
         }
       });
-
-      if (titulo && imagen && link && precio) {
-        resultados.push({ titulo, imagen, precio, link });
-      }
+      return items;
     });
 
+    await browser.close();
     res.json({ resultados });
 
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: 'Error en scraping.' });
+    res.status(500).json({ error: 'Error en scraping Puppeteer.' });
   }
 });
 
 app.listen(PORT, () => {
-  console.log(`✅ Servidor corriendo en puerto ${PORT}`);
+  console.log(`✅ Servidor Puppeteer corriendo en puerto ${PORT}`);
 });
