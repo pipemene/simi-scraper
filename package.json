@@ -1,7 +1,7 @@
 {
-  "name": "simi_scraper_puppeteer_click_fixed",
+  "name": "simi-scraper",
   "version": "1.0.0",
-  "description": "Scraper Puppeteer con click, token corregido sin -901",
+  "description": "Scraper para ManyChat y Simi Inmobiliarias",
   "main": "index.js",
   "scripts": {
     "start": "node index.js"

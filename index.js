@@ -10,6 +10,8 @@ app.use(express.json());
 
 app.get('/consulta', async (req, res) => {
   try {
+    const { operacion = '1', tipo = '1', ciudad = '1' } = req.query;
+
     const url = 'https://simi-api.com/iframeNvo/index.php?inmo=901&typebox=1&numbox=3&viewtitlesearch=1&titlesearch=Buscador%20de%20Inmuebles&colortitlesearch=FFFFFF&bgtitlesearch=0076BD&secondct=0076BD&primaryc=0076BD&primaryct=ffff&token=xjJ36l4J6PjMucqp9khJq6gJCjfXxY8HthO0eQ6y';
 
     const browser = await puppeteer.launch({
@@ -19,14 +21,15 @@ app.get('/consulta', async (req, res) => {
     const page = await browser.newPage();
     await page.goto(url, { waitUntil: 'networkidle2' });
 
-    await page.select('#tip_ope', '1'); // Arriendo
-    await page.select('#tip_inm', '1'); // Apartamento
-    await page.select('#ciudad', '1');  // Primera ciudad disponible
+    await page.select('#tip_ope', operacion);
+    await page.select('#tip_inm', tipo);
+    await page.select('#ciudad', ciudad);
 
     await page.click('input[type="submit"].button');
     await page.waitForSelector('.item_property', { timeout: 10000 });
 
     const resultados = await page.evaluate(() => {
+      const base = 'https://simi-api.com/iframeNvo/';
       const items = [];
       document.querySelectorAll('.item_property').forEach(el => {
         const titulo = el.querySelector('h5')?.innerText.trim();
@@ -34,11 +37,10 @@ app.get('/consulta', async (req, res) => {
         let imagen = null;
         if (fondo) {
           const match = fondo.match(/url\(["']?(.*?)["']?\)/);
-          if (match && match[1]) {
-            imagen = match[1];
-          }
+          if (match && match[1]) imagen = match[1];
         }
-        const link = el.querySelector('a')?.getAttribute('href');
+        let link = el.querySelector('a')?.getAttribute('href');
+        if (link) link = base + link;
 
         let precio = '';
         el.querySelectorAll('.info_property li').forEach(li => {
@@ -59,10 +61,10 @@ app.get('/consulta', async (req, res) => {
 
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: 'Error en scraping Puppeteer con clicks.' });
+    res.status(500).json({ error: 'Error en scraping Puppeteer.' });
   }
 });
 
 app.listen(PORT, () => {
-  console.log(`✅ Servidor Puppeteer + Click corriendo en puerto ${PORT}`);
+  console.log(`✅ Servidor Puppeteer corriendo en puerto ${PORT}`);
 });
