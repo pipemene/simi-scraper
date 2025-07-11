@@ -10,7 +10,8 @@ app.use(express.json());
 
 app.get('/consulta', async (req, res) => {
   try {
-    const { operacion = '1', tipo = '1', ciudad = '1' } = req.query;
+    // 👉 Recoge todos los filtros
+    const { operacion = '1', tipo = '1', ciudad = '1', canon = '999999999' } = req.query;
 
     const url = 'https://simi-api.com/iframeNvo/index.php?inmo=901&typebox=1&numbox=3&viewtitlesearch=1&titlesearch=Buscador%20de%20Inmuebles&colortitlesearch=FFFFFF&bgtitlesearch=0076BD&secondct=0076BD&primaryc=0076BD&primaryct=ffff&token=xjJ36l4J6PjMucqp9khJq6gJCjfXxY8HthO0eQ6y';
 
@@ -21,6 +22,7 @@ app.get('/consulta', async (req, res) => {
     const page = await browser.newPage();
     await page.goto(url, { waitUntil: 'networkidle2' });
 
+    // 👉 Aplica filtros Simi: operación, tipo, ciudad
     await page.select('#tip_ope', operacion);
     await page.select('#tip_inm', tipo);
     await page.select('#ciudad', ciudad);
@@ -28,15 +30,18 @@ app.get('/consulta', async (req, res) => {
     await page.click('input[type="submit"].button');
     await page.waitForSelector('.item_property', { timeout: 10000 });
 
-    const resultados = await page.evaluate(() => {
+    // 👉 Filtra resultados por precio dentro del scraping
+    const resultados = await page.evaluate((canonMax) => {
       const base = 'https://simi-api.com/iframeNvo/';
+      const canonMaxNum = parseInt(canonMax);
       const items = [];
+
       document.querySelectorAll('.item_property').forEach(el => {
         const titulo = el.querySelector('h5')?.innerText.trim();
         const fondo = el.querySelector('.head_property')?.getAttribute('style');
         let imagen = null;
         if (fondo) {
-          const match = fondo.match(/url\(["']?(.*?)["']?\)/);
+          const match = fondo.match(/url\\(["']?(.*?)["']?\\)/);
           if (match && match[1]) imagen = match[1];
         }
         let link = el.querySelector('a')?.getAttribute('href');
@@ -50,11 +55,14 @@ app.get('/consulta', async (req, res) => {
         });
 
         if (titulo && imagen && link && precio) {
-          items.push({ titulo, imagen, precio, link });
+          const precioNum = parseInt(precio.replace(/[^0-9]/g, ''));
+          if (precioNum <= canonMaxNum) {
+            items.push({ titulo, imagen, precio, link });
+          }
         }
       });
       return items;
-    });
+    }, canon);
 
     await browser.close();
     res.json({ resultados });
