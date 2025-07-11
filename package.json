@@ -1,7 +1,7 @@
 {
-  "name": "simi-scraper",
+  "name": "simi-scraper-pro",
   "version": "1.0.0",
-  "description": "Scraper para ManyChat y Simi Inmobiliarias",
+  "description": "Scraper PRO plano para Railway",
   "main": "index.js",
   "scripts": {
     "start": "node index.js"
